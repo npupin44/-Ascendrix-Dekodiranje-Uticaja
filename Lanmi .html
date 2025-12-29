@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kodeks: Dekodiranje Uticaja</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fontovi: Cinzel (Naslovi/Kraljevski), Playfair (Telo/Citati), Oswald (Zaglavlja), Share Tech Mono (Tehnički podaci) -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Oswald:wght@300;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            /* PALETA BOJA - IDENTIČNA ORIGINALU */
+            --bg-duboka: #161618;
+            --bg-panel: #222225; 
+            --bg-prekrivac: rgba(22, 22, 24, 0.95);
+            
+            --akcent-platina: #cbd5e1;
+            --akcent-zlato: #c5a059;
+            
+            --tekst-glavni: #e2e2e2;
+            --tekst-sporedni: #9ca3af;
+            
+            --font-zaglavlje: 'Oswald', sans-serif;
+            --font-protokol: 'Cinzel', serif;
+            --font-telo: 'Playfair Display', serif;
+            --font-tehnicki: 'Share Tech Mono', monospace;
+            
+            --tranzicija-luks: cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* --- GLOBALNO & SKALIRANJE --- */
+        body {
+            background-color: var(--bg-duboka);
+            color: var(--tekst-glavni);
+            font-family: var(--font-telo);
+            overflow-x: hidden;
+            zoom: 0.90; 
+            background-image: 
+                linear-gradient(rgba(22, 22, 24, 0.92), rgba(22, 22, 24, 0.96)),
+                url('https://www.transparenttextures.com/patterns/cubes.png');
+        }
+
+        /* Klizač (Scrollbar) */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-duboka); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--akcent-zlato); }
+
+        /* Tipografija */
+        h1, h2, h3 { font-family: var(--font-zaglavlje); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .naslov-elita {
+            background: linear-gradient(to right, #ffffff, var(--akcent-platina), #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- KONTROLNA TABLA (HUD) --- */
+        .kontrolna-traka {
+            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: rgba(22, 22, 24, 0.95);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .status-tekst {
+            font-family: var(--font-tehnicki);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--akcent-platina);
+            text-transform: uppercase;
+        }
+
+        /* --- MENI --- */
+        .meni-dugme {
+            position: fixed; top: 15px; right: 30px; z-index: 110;
+            width: 40px; height: 40px;
+            border: 1px solid var(--akcent-zlato);
+            color: var(--akcent-zlato);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; background: rgba(30,30,30,0.8);
+        }
+        .meni-dugme:hover { background: var(--akcent-zlato); color: #000; }
+
+        .meni-prekrivac {
+            position: fixed; top: 0; right: 0; width: 100%; height: 100%;
+            background: var(--bg-duboka); z-index: 105;
+            transform: translateX(100%);
+            transition: transform 0.5s var(--tranzicija-luks);
+            border-left: 1px solid #333;
+            display: flex; flex-direction: column;
+            box-shadow: -10px 0 50px rgba(0,0,0,0.5);
+        }
+        .meni-prekrivac.aktivno { transform: translateX(0); }
+        @media(min-width: 768px) { .meni-prekrivac { width: 450px; margin-left: auto; } }
+
+        .meni-link {
+            padding: 18px 30px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 15px;
+        }
+        .meni-link:hover { background: rgba(255,255,255,0.05); padding-left: 35px; }
+        .meni-faza {
+            font-family: var(--font-tehnicki); color: var(--akcent-zlato); font-size: 11px; letter-spacing: 3px;
+            padding: 25px 30px 10px; text-transform: uppercase; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* --- OBAVEŠTENJE / IZVEŠTAJ --- */
+        .izvestaj-prekrivac {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: 0.6s;
+            backdrop-filter: blur(5px);
+        }
+        .izvestaj-prekrivac.aktivno { opacity: 1; pointer-events: all; }
+
+        .izvestaj-kartica {
+            width: 90%; max-width: 600px;
+            border: 1px solid var(--akcent-platina);
+            background: var(--bg-panel);
+            padding: 50px; text-align: center;
+            box-shadow: 0 0 60px rgba(197, 160, 89, 0.1);
+            position: relative;
+        }
+        .izvestaj-kartica::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--akcent-zlato), transparent);
+            animation: skeniranje 2s infinite;
+        }
+        @keyframes skeniranje { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* --- KOMPONENTE --- */
+        .takticko-dugme {
+            background: transparent; border: 1px solid var(--akcent-zlato);
+            color: var(--akcent-zlato); padding: 14px 30px;
+            font-family: var(--font-zaglavlje); letter-spacing: 2px;
+            font-size: 13px; cursor: pointer; transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .takticko-dugme:hover { background: var(--akcent-zlato); color: #000; box-shadow: 0 0 25px rgba(197, 160, 89, 0.4); }
+
+        .sadrzaj-kartica {
+            background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.08);
+            padding: 35px; margin-bottom: 20px; transition: 0.3s;
+        }
+        .sadrzaj-kartica:hover { border-color: var(--akcent-platina); transform: translateY(-2px); }
+        
+        .korak-ikona {
+            min-width: 45px; height: 45px; border: 1px solid rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--akcent-platina); margin-right: 20px; font-size: 16px;
+        }
+
+        /* Unos teksta */
+        textarea {
+            width: 100%; background: rgba(0,0,0,0.2); border: 1px solid #444;
+            color: #eee; padding: 15px; font-family: var(--font-telo);
+            transition: 0.3s; resize: vertical; font-size: 16px;
+        }
+        textarea:focus { border-color: var(--akcent-zlato); outline: none; background: rgba(0,0,0,0.4); }
+
+        /* Slike */
+        .heroj-pozadina {
+            filter: brightness(70%) contrast(110%); 
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- KONTROLNA TABLA -->
+    <div class="kontrolna-traka">
+        <div class="flex items-center gap-4">
+            <i class="fas fa-eye text-[var(--akcent-zlato)] text-xl"></i>
+            <div>
+                <div class="status-tekst text-white font-bold">KODEKS</div>
+                <div class="status-tekst text-[var(--akcent-zlato)]">DEKODIRANJE UTICAJA</div>
+            </div>
+        </div>
+        <div class="hidden md:block status-tekst tracking-[5px]">NIVO PRISTUPA: NEOGRANIČEN</div>
+        <div class="w-10"></div>
+    </div>
+
+    <!-- DUGME MENIJA -->
+    <button onclick="promeniMeni()" class="meni-dugme"><i class="fas fa-bars"></i></button>
+
+    <!-- MENI PREKRIVAČ -->
+    <div id="meniPrekrivac" class="meni-prekrivac">
+        <div class="p-8 border-b border-[#333] mt-16 bg-[#1a1a1a]">
+            <h2 class="text-3xl text-white font-[var(--font-protokol)]">Registar</h2>
+            <p class="status-tekst mt-2 text-[#888]">Odaberi Modul</p>
+        </div>
+        <div class="overflow-y-auto flex-1 pb-10" id="meniSadrzaj"></div>
+    </div>
+
+    <!-- OBAVEŠTENJE (MESSAGE) -->
+    <div id="izvestajPrekrivac" class="izvestaj-prekrivac">
+        <div class="izvestaj-kartica">
+            <i class="fas fa-fingerprint text-5xl text-[#444] mb-8"></i>
+            <h3 class="status-tekst text-[var(--akcent-zlato)] mb-8 tracking-[6px] text-sm">DOLAZNI PODACI</h3>
+            <p id="tekstPoruke" class="text-2xl md:text-3xl text-white font-[var(--font-telo)] italic leading-relaxed mb-12">
+                <!-- Poruka se ubacuje ovde -->
+            </p>
+            <button onclick="zatvoriIzvestaj()" class="takticko-dugme">
+                <i class="fas fa-unlock mr-2"></i> OTVORI DOSIJE
+            </button>
+        </div>
+    </div>
+
+    <!-- GLAVNI SADRŽAJ -->
+    <main id="glavniKontejner" class="max-w-7xl mx-auto px-6 pt-32 pb-24 opacity-0 transition-opacity duration-700">
+        <!-- Sadržaj se ubacuje ovde -->
+    </main>
+
+    <script>
+        // --- BAZA PODATAKA (DEKODIRANJE UTICAJA) ---
+        const podaciKursa = [
+            // FAZA 1: ANALIZA SIGNALA
+            { 
+                dan: 1, faza: 1, naslov: 'Mikro-Ekspresije', 
+                poruka: "Lice ne može da laže u prvih 0.2 sekunde.", 
+                slika: 'https://images.unsplash.com/photo-1543946602-a0e28c4664f1?q=80&w=1600', 
+                uvod: `<p>Većina ljudi sluša samo reči, ali reči su dimna zavesa. Pravi uticaj počinje posmatranjem onoga što se ne izgovara. Ljudsko lice je mapa namera.</p><p>Mikro-ekspresije su nevoljni trzaji mišića koji traju manje od pola sekunde. One otkrivaju pravu emociju pre nego što "socijalna maska" stigne da je prekrije. Da bi dekodirao uticaj, moraš postati ekspert za te procepe u oklopu.</p><p>Danas prestaješ da slušaš priče i počinješ da gledaš istinu.</p>`,
+                koraci: [
+                    { naslov: "Lov na Nesklad", ikona: "fa-search", tekst: "Kada neko kaže 'Drago mi je', a uglovi usana se blago spuste ili se pojavi bora između obrva – veruj mišićima, ne rečima. Taj trenutak nesklada je ključ njihove prave namere." },
+                    { naslov: "Bljesak Prezira", ikona: "fa-eye-slash", tekst: "Najopasnija mikro-ekspresija je asimetrično podizanje jednog ugla usana. To je prezir. Ako to vidiš kod sagovornika, znaj da te u tom trenutku smatraju inferiornim, bez obzira na laskanje koje izgovaraju." }
+                ],
+                misija: "Tokom jednog razgovora danas, ignoriši zvuk. Fokusiraj se isključivo na predeo oko očiju i usta sagovornika u trenucima dok sluša tvoje reči. Uhvati jednu emociju koju nije izgovorio.",
+                dnevnik: "Koje skriveno osećanje si primetio danas? Da li se poklapalo sa onim što je osoba govorila?"
+            },
+            { 
+                dan: 2, faza: 1, naslov: 'Iskrenost Stopala', 
+                poruka: "Ljudi kontrolišu lice, ali zaboravljaju na noge.", 
+                slika: 'https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?q=80&w=1600', 
+                uvod: `<p>Evolutivno, noge su dizajnirane za "bori se ili beži" reakciju. Zato su one najiskreniji deo tela. Dok se osoba smeška i klima glavom, njena stopala govore da li želi da ostane ili da pobegne.</p><p>Ako naučiš da čitaš ovaj "niski signal", znaćeš ko je zaista zainteresovan za tebe, a ko samo čeka priliku da ode. To ti daje ogromnu prednost u pregovorima i socijalnoj dinamici.</p>`,
+                koraci: [
+                    { naslov: "Vektor Bekstva", ikona: "fa-running", tekst: "Pogledaj stopala sagovornika. Ako su okrenuta ka tebi, prisutni su. Ako je trup okrenut ka tebi, ali stopala ka vratima (u obliku slova L), oni su mentalno već otišli. Prekini razgovor prvi i zadrži dostojanstvo." },
+                    { naslov: "Teritorijalno Širenje", ikona: "fa-expand", tekst: "Kada se ljudi osećaju dominantno ili sigurno, razdvoje stopala. Kada su nesigurni ili se osećaju ugroženo, skupe ih ili ukrste gležnjeve (zaključavanje). Prati promenu širine stava tokom teških pitanja." }
+                ],
+                misija: "Posmatraj grupu ljudi (sastanak ili kafić). Identifikuj ko želi da napusti razgovor samo na osnovu položaja stopala.",
+                dnevnik: "Da li si primetio nesklad između nečijeg ljubaznog lica i stopala usmerenih ka izlazu?"
+            },
+            { 
+                dan: 3, faza: 1, naslov: 'Ogledanje i Sinhronicitet', 
+                poruka: "Sličnost rađa poverenje. Postani njihovo ogledalo.", 
+                slika: 'https://images.unsplash.com/photo-1517524285303-d6fc683dddf8?q=80&w=1600', 
+                uvod: `<p>Ljudi su biološki programirani da veruju onima koji su im slični. To je plemenski instinkt. Najbrži način da hakuješ nečiji sistem poverenja nije logičkim argumentima, već fizičkim 'ogledanjem' (mirroring).</p><p>Ovo nije imitacija, to je uspostavljanje ritma. Kada se dvoje ljudi duboko razumeju, njihova tela se prirodno sinhronizuju. Ti ćeš taj proces svesno obrnuti: sinhronizuj se da bi stvorio razumevanje.</p>`,
+                koraci: [
+                    { naslov: "Eho Gestikulacije", ikona: "fa-sync", tekst: "Sačekaj 3-4 sekunde nakon što sagovornik promeni položaj (npr. prekrsti ruke ili se nagne), a zatim uradi to isto. Suptilnost je ključna. Ako te primete, magija nestaje." },
+                    { naslov: "Verbalno Ogledalo", ikona: "fa-microphone-alt", tekst: "Koristi iste ključne reči kao oni. Ako oni kažu 'ovo je fantastično', nemoj reći 'super je'. Reci 'zaista je fantastično'. Korišćenje njihovog rečnika potvrđuje njihovu realnost." }
+                ],
+                misija: "U razgovoru sa nekim koga slabije poznaješ, suptilno kopiraj njihov položaj tela. Prati da li postaju otvoreniji i opušteniji prema tebi.",
+                dnevnik: "Da li si osetio promenu u 'temperaturi' razgovora nakon uspostavljanja fizičkog sinhroniciteta?"
+            },
+            { 
+                dan: 4, faza: 1, naslov: 'Detekcija Nelagode', 
+                poruka: "Dodirivanje lica je pokušaj mozga da se smiri.", 
+                slika: 'https://images.unsplash.com/photo-1470162656305-6f429ba817bf?q=80&w=1600', 
+                uvod: `<p>Kada je ljudski mozak pod stresom ili laže, on šalje signal telu da se 'uteši'. To se manifestuje kroz dodirivanje vrata, lica ili trljanje ruku. To su 'umirujući gestovi' (pacifying behaviors).</p><p>Ako postaviš pitanje i osoba odjednom dodirne udubljenje na vratu ili protrlja oko, upravo si dotakao osetljivu tačku. To je tvoj signal: ili pritisni jače ako želiš istinu, ili se povuci ako želiš da gradiš poverenje.</p>`,
+                koraci: [
+                    { naslov: "Blokada Očiju", ikona: "fa-hand-paper", tekst: "Ako osoba protrlja oči ili stavi ruku na čelo kao štit dok odgovara, podsvest pokušava da 'ne vidi' ono što govori. Često znak obmane ili stida." },
+                    { naslov: "Zaštita Vrata", ikona: "fa-user-shield", tekst: "Vrat je najranjiviji deo tela. Dodirivanje vrata, ogrlice ili kragne je univerzalni znak da se osoba oseća ugroženo ili nesigurno. Prati to kada se menjaju teme razgovora." }
+                ],
+                misija: "Postavi nekome direktno, možda malo neprijatno pitanje ('Šta stvarno misliš o X?'). Posmatraj da li će im ruka krenuti ka licu ili vratu.",
+                dnevnik: "Koji 'umirujući gest' si danas primetio kod drugih? Šta je bio okidač?"
+            },
+            { 
+                dan: 5, faza: 1, naslov: 'Prostorna Dominacija', 
+                poruka: "Ko kontroliše prostor, kontroliše ishod.", 
+                slika: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1600', 
+                uvod: `<p>Proksemika je nauka o ličnom prostoru. Način na koji koristiš prostor oko sebe šalje snažne signale o tvom statusu. Ljudi niskog statusa se skupljaju, ljudi visokog statusa se šire.</p><p>Ali uticaj nije samo u širenju, već u invaziji i povlačenju. Znati kada da uđeš u nečiju intimnu zonu da bi stvorio pritisak ili bliskost je umetnost manipulacije prostorom.</p>`,
+                koraci: [
+                    { naslov: "Glavno Mesto", ikona: "fa-chair", tekst: "Uvek biraj stolicu sa najboljim pregledom prostorije i leđima zaštićenim zidom. To smanjuje tvoj primarni stres i omogućava ti da skeniraš okolinu. Ljudi instinktivno gledaju ka čelu stola." },
+                    { naslov: "Naginjanje", ikona: "fa-arrows-alt-h", tekst: "Ne naginji se ka sagovorniku previše rano – to je znak potrebe. Ostani zavaljen dok slušaš (moć procene). Nagni se napred samo kada želiš da poentiraš ili daš 'poklon' pažnje." }
+                ],
+                misija: "Na javnom mestu ili sastanku, svesno zauzmi više prostora svojim stvarima ili telom. Posmatraj kako se drugi nesvesno pomeraju da ti naprave mesto.",
+                dnevnik: "Da li ti je bilo neprijatno da zauzmeš prostor? Kako su drugi reagovali na tvoje širenje?"
+            },
+            { 
+                dan: 6, faza: 1, naslov: 'Analiza Glasa', 
+                poruka: "Ton nosi 38% poruke. Reči samo 7%.", 
+                slika: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=1600', 
+                uvod: `<p>Visina glasa, brzina i pauze govore više od sadržaja. Nervoza steže glasne žice i podiže ton. Sigurnost opušta žice i spušta ton.</p><p>Najveći izdajnik je 'upitna intonacija' na kraju tvrdnje. Ako kažeš svoje ime sa uzlaznom putanjom ('Ja sam Marko?'), zvučiš kao da tražiš odobrenje da postojiš. Dekodiraj glas drugih: da li im glas drhti, da li ubrzavaju (strah od prekidanja) ili govore sporo (autoritet)?</p>`,
+                koraci: [
+                    { naslov: "Detekcija Brzine", ikona: "fa-tachometer-alt", tekst: "Ljudi koji lažu ili su nesigurni često govore brže da bi 'izbacili' priču pre nego što budu uhvaćeni. Ako neko naglo ubrza, tu se krije slabost." },
+                    { naslov: "Silazna Infleksija", ikona: "fa-arrow-down", tekst: "Lideri završavaju rečenice spuštanjem tona. To zvuči kao naređenje ili činjenica. Vežbaj da tvoje izjave zvuče kao da su uklesane u kamen, samo promenom melodije kraja rečenice." }
+                ],
+                misija: "Slušaj nekoga dok telefonira. Ne slušaj reči, slušaj samo melodiju. Pokušaj da pogodiš njihov emocionalni stav samo na osnovu tona.",
+                dnevnik: "Šta si čuo u nečijem glasu što reči nisu rekle? Da li je bilo nesigurnosti maskirane glasnim govorom?"
+            },
+            { 
+                dan: 7, faza: 1, naslov: 'Refleksija: Rendgenski Vid', 
+                poruka: "Sada vidiš matricu socijalne interakcije.", 
+                slika: 'https://images.unsplash.com/photo-1456324504439-367cee3b3c32?q=80&w=1600', 
+                uvod: `<p>Završio si Prvu Fazu. Više nisi slep za signale. Tvoj svet je postao bogatiji za sloj informacija koji je većini nevidljiv.</p><p>Znaš da stopala govore istinu, da oči otkrivaju prezir, da glas odaje strah. Ovi podaci su tvoje gorivo. U narednoj fazi, naučićeš kako da te podatke koristiš da aktivno menjaš ishod interakcije. Od posmatrača postaješ operater.</p>`,
+                koraci: [
+                    { naslov: "Kalibracija", ikona: "fa-cogs", tekst: "Svaka osoba je drugačija. Prvo moraš utvrditi njihovo 'normalno' ponašanje (baseline) pre nego što tražiš odstupanja. Ne žuri sa zaključcima." },
+                    { naslov: "Tiha Moć", ikona: "fa-user-secret", tekst: "Najveća moć ovog znanja je u tome da niko ne zna da ga poseduješ. Ne govori ljudima 'vidim da si nervozan jer dodiruješ vrat'. Zadrži to za sebe i prilagodi strategiju." }
+                ],
+                misija: "Provedi 15 minuta u kafiću samo posmatrajući parove. Pokušaj da rekonstruišeš njihov odnos samo na osnovu govora tela.",
+                dnevnik: "Koliko se tvoja percepcija sveta promenila u ovih 7 dana? Šta sada primećuješ što ranije nisi?"
+            },
+
+            // FAZA 2: NEVIDLJIVI UTICAJ
+            { 
+                dan: 8, faza: 2, naslov: 'Princip Reciprociteta', 
+                poruka: "Daj malo da bi uzeo mnogo. Ljudi mrze da budu dužni.", 
+                slika: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=1600', 
+                uvod: `<p>Ljudski mozak ne podnosi dugovanja. Ako ti učinim uslugu, stvorio sam psihološku tenziju kod tebe koju želiš da rešiš vraćanjem usluge. To je najstarija valuta uticaja.</p><p>Tajna nije u velikim poklonima, već u malim, neočekivanim gestovima pre nego što išta zatražiš. Kafa, informacija, kompliment. Time 'punjaš' račun pre nego što ga iskoristiš.</p>`,
+                koraci: [
+                    { naslov: "Preventivno Davanje", ikona: "fa-gift", tekst: "Uvek uđi u interakciju nudeći nešto prvi. Informaciju, kontakt, pomoć. To ti daje moralnu visinu i pravo da kasnije zatražiš protivuslugu bez otpora." },
+                    { naslov: "Personalizacija", ikona: "fa-fingerprint", tekst: "Vrednost usluge nije u ceni, već u pažnji. Zapamti nečije ime, omiljeno piće ili problem koji su pomenuli. To vredi više od skupog poklona jer pokazuje da si slušao." }
+                ],
+                misija: "Učini danas malu, neočekivanu uslugu nekome od koga ništa ne tražiš (trenutno). Posmatraj njihovu reakciju i želju da ti se 'oduže'.",
+                dnevnik: "Kako su ljudi reagovali na neočekivanu ljubaznost? Da li si osetio promenu u dinamici moći?"
+            },
+            { 
+                dan: 9, faza: 2, naslov: 'Uokvirivanje Izbora', 
+                poruka: "Onaj ko postavlja opcije, kontroliše odluku.", 
+                slika: 'https://images.unsplash.com/photo-1434626881859-194d67b2b86f?q=80&w=1600', 
+                uvod: `<p>Ljudi misle da žele slobodu izbora, ali zapravo žele jednostavnost. Ako pitaš 'Kada ćemo se videti?', daješ im teret odlučivanja. Ako pitaš 'Da li ti više odgovara utorak ili četvrtak?', ti vodiš igru.</p><p>Ovo se zove 'Lažna Dilema'. Daješ im iluziju kontrole biranjem između dve opcije koje tebi odgovaraju. Ti si arhitekta njihovog izbora.</p>`,
+                koraci: [
+                    { naslov: "A ili B Tehnika", ikona: "fa-list-ol", tekst: "Nikad ne ostavljaj otvoren kraj. Umesto 'Da li želiš da kupiš?', pitaj 'Da li želiš crveni ili plavi model?'. Preksačeš pitanje 'da li' i prelaziš direktno na 'koji'." },
+                    { naslov: "Sidrenje Cene", ikona: "fa-anchor", tekst: "Prvi broj koji se izgovori postaje sidro. Ako tražiš povišicu, traži više nego što očekuješ. To čini tvoju realnu želju prihvatljivijom u poređenju sa početnim sidrom." }
+                ],
+                misija: "Danas, kada treba da se dogovoriš oko nečega, ne pitaj 'Šta želiš?', već ponudi dve specifične opcije koje tebi idu u korist.",
+                dnevnik: "Da li je druga strana prihvatila jednu od ponuđenih opcija bez traženja treće?"
+            },
+            { 
+                dan: 10, faza: 2, naslov: 'Moć Imena i Etiketa', 
+                poruka: "Najslađi zvuk svakom čoveku je njegovo ime.", 
+                slika: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1600', 
+                uvod: `<p>Korišćenje nečijeg imena u razgovoru buši automatske filtere odbrane. To je verbalni dodir. Ali još jače od imena je 'dodeljivanje etikete'.</p><p>Kada nekome dodeliš pozitivnu etiketu ('Vidim da si ti čovek od reči', 'Ti si neko ko ceni kvalitet'), oni će nesvesno težiti da opravdaju tu etiketu. To se zove 'Pygmalion efekat'. Oblikuj ljude svojim očekivanjima.</p>`,
+                koraci: [
+                    { naslov: "Strateško Imenovanje", ikona: "fa-id-badge", tekst: "Koristi ime sagovornika na početku i na kraju ključnih rečenica. 'Marko, mislim da je ovo važno.' To vraća njihovu punu pažnju na tebe." },
+                    { naslov: "Etiketa Vrline", ikona: "fa-medal", tekst: "Pre nego što zatražiš nešto, pripiši im vrlinu potrebnu za to. 'Znam da si ti veoma temeljan...' (pre nego što tražiš da provere izveštaj). Teško im je da odbiju i razočaraju sliku o sebi." }
+                ],
+                misija: "Tokom razgovora, svesno upotrebi ime sagovornika tri puta. Takođe, dodeli im jednu pozitivnu osobinu ('Ti si baš strpljiv') i gledaj kako se trude da to i ostanu.",
+                dnevnik: "Kako se promenio fokus sagovornika kada si izgovorio njegovo ime? Da li su prihvatili etiketu?"
+            },
+            { 
+                dan: 11, faza: 2, naslov: 'Efekat Nestašice', 
+                poruka: "Ljudi žele ono što izmiče. Strah od gubitka je jači od želje za dobitkom.", 
+                slika: 'https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?q=80&w=1600', 
+                uvod: `<p>Ako si uvek dostupan, tvoja vrednost pada. To je zakon tržišta. Da bi povećao svoj uticaj, moraš povremeno uskratiti svoje prisustvo.</p><p>Nestašica stvara hitnost. Bilo da se radi o tvom vremenu, proizvodu ili pažnji, mora postojati osećaj da je resurs ograničen. 'Imam samo 5 minuta' je moćnija rečenica od 'Imam celo popodne'.</p>`,
+                koraci: [
+                    { naslov: "Vremensko Ograničenje", ikona: "fa-hourglass-end", tekst: "Uvek postavi krajnji rok za svoju dostupnost. 'Mogu da pričam do 14h'. To tera ljude da pređu na stvar i da cene tvoje minute." },
+                    { naslov: "Odlazak u Piku", ikona: "fa-sign-out-alt", tekst: "Završi interakciju kada je energija najviša, a ne kada postane dosadno. Ostavi ih da žele još. To stvara psihološku 'kuku' zbog koje će te oni tražiti kasnije." }
+                ],
+                misija: "Danas odbij jedan poziv ili zahtev uz objašnjenje da si zauzet (čak i ako nisi). Ponudi alternativni, kraći termin kasnije.",
+                dnevnik: "Da li si osetio strah da će se ljudi naljutiti? Šta se zapravo desilo – da li su te više poštovali?"
+            },
+            { 
+                dan: 12, faza: 2, naslov: 'Društveni Dokaz', 
+                poruka: "Niko ne želi da bude prvi, ali svi žele da budu deo većine.", 
+                slika: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=1600', 
+                uvod: `<p>Kada su ljudi nesigurni, ne gledaju u činjenice, gledaju u druge ljude. To je instinkt stada. Ako želiš da ubediš nekoga, nemoj reći 'Ovo je dobro', reci 'Mnogi ljudi slični tebi su izabrali ovo'.</p><p>Konstruiši percepciju da si ti ili tvoja ideja već prihvaćeni od strane važnih ili brojnih ljudi. Tvoj autoritet raste eksponencijalno sa brojem ljudi koji (navodno) stoje iza tebe.</p>`,
+                koraci: [
+                    { naslov: "Imenovanje Trećih Strana", ikona: "fa-users", tekst: "Pomeni usputno ko se još slaže s tobom. 'Baš sam pričao sa Jovanom o ovome i on misli...' Ako Jovan ima autoritet, ti pozajmljuješ njegov uticaj." },
+                    { naslov: "Ekskluzivni Klub", ikona: "fa-gem", tekst: "Preokreni skriptu. Umesto 'Molim te pridruži nam se', stvori okvir 'Pridruži se onima koji znaju'. Učini da pripadnost tvojoj ideji bude statusni simbol." }
+                ],
+                misija: "Kada predlažeš nešto (film, restoran, ideju), pomeni da je to preporuka nekog koga svi u grupi poštuju ili da je to trenutno 'najtraženije'.",
+                dnevnik: "Koliko je otpor bio manji kada si se pozvao na druge ljude umesto na sopstveno mišljenje?"
+            },
+            { 
+                dan: 13, faza: 2, naslov: 'Strateška Tišina', 
+                poruka: "Prazan prostor tera ljude da otkriju tajne.", 
+                slika: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=1600', 
+                uvod: `<p>Većina ljudi paniči u tišini. Osećaju obavezu da je popune rečima. Ti ćeš to iskoristiti. Tišina je alat za izvlačenje informacija.</p><p>Kada neko završi odgovor, a ti osećaš da krije još nešto – ćuti. Gledaj ih u oči i čekaj. Tenzija tišine će postati nepodnošljiva za njih i oni će nastaviti da pričaju, često otkrivajući istinu koju su hteli da prećute.</p>`,
+                koraci: [
+                    { naslov: "Pauza od 4 Sekunde", ikona: "fa-stopwatch", tekst: "Nakon što ti odgovore na važno pitanje, izbroj u glavi do 4 pre nego što progovoriš. Često će oni ponovo početi da pričaju pre nego što dođeš do 4." },
+                    { naslov: "Lice Bez Reakcije", ikona: "fa-meh", tekst: "Ne klimaj glavom da bi ih ohrabrio. Ostani neutralan. Nedostatak povratne informacije (feedbeka) ih tera da se trude više da ti objasne ili da se opravdaju." }
+                ],
+                misija: "U razgovoru danas, koristi tehniku tišine bar dva puta. Pusti da nastane 'neprijatna' pauza i čekaj da je druga osoba prekine.",
+                dnevnik: "Šta je osoba rekla da popuni tišinu? Da li je informacija bila vrednija od prvobitnog odgovora?"
+            },
+            { 
+                dan: 14, faza: 2, naslov: 'Refleksija: Nevidljive Niti', 
+                poruka: "Ti više ne moliš. Ti dizajniraš ishod.", 
+                slika: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1600', 
+                uvod: `<p>Druga faza je završena. Sada poseduješ alate aktivnog uticaja. Znaš kako da koristiš ime, tišinu, nestašicu i iluziju izbora. Ovi alati deluju direktno na ljudsku podsvest.</p><p>Ljudi oko tebe će imati osećaj da sami donose odluke, ali zapravo se kreću stazama koje si ti postavio. To je vrhunac uticaja – kada drugi misle da je tvoja ideja bila njihova.</p>`,
+                koraci: [
+                    { naslov: "Etička Provera", ikona: "fa-balance-scale", tekst: "Ovi alati su neutralni, kao čekić. Mogu graditi ili rušiti. Koristi ih svesno. Uticaj bez integriteta je manipulacija koja se na kraju ruši." },
+                    { naslov: "Kombinatorika", ikona: "fa-project-diagram", tekst: "Počni da kombinuješ tehnike. Koristi ime (Dan 10) dok stvaraš nestašicu (Dan 11). Koristi tišinu (Dan 13) dok čitaš govor tela (Dan 2). Postani tečan u ovom jeziku." }
+                ],
+                misija: "Priseti se situacije iz prošlosti gde si bio izmanipulisan. Koju od ovih tehnika su upotrebili na tebi? Zapiši to da bi prepoznao u budućnosti.",
+                dnevnik: "Koja tehnika ti dolazi najprirodnije, a koja ti je najteža za izvođenje? Zašto?"
+            },
+
+            // FAZA 3: STRATEŠKA DOMINACIJA
+            { 
+                dan: 15, faza: 3, naslov: 'Upravljanje Percepcijom', 
+                poruka: "Istina je bitna, ali ono u šta ljudi veruju je bitnije.", 
+                slika: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=1600', 
+                uvod: `<p>Faza III: Strategija. Ovde izlazimo iz 'jedan na jedan' interakcija i ulazimo u širu sliku. Tvoj javni imidž (reputacija) ulazi u sobu pre tebe.</p><p>Moraš aktivno upravljati pričom o sebi. Ako ti ne definišeš ko si, drugi će to uraditi umesto tebe, i neće biti blagonakloni. Budi misteriozan. Ne otkrivaj sve svoje karte. Neka ljudi popunjavaju praznine maštom o tvojoj moći.</p>`,
+                koraci: [
+                    { naslov: "Kontrolisane Informacije", ikona: "fa-bullhorn", tekst: "Nikad ne pričaj o svojim problemima ljudima koji ne mogu da ih reše. To te čini slabim. Deli samo pobede ili strateške ciljeve." },
+                    { naslov: "Misterija", ikona: "fa-mask", tekst: "Budi predvidljiv u poslu (pouzdan), ali nepredvidljiv u ličnosti. Ljudi brzo gube interesovanje za ono što potpuno razumeju. Zadrži deo sebe skrivenim." }
+                ],
+                misija: "Danas, kada te pitaju 'šta ima novo?', ne istresaj sve detalje. Daj kratak, intrigantan odgovor koji nagoveštava uspeh, ali ne otkriva sve.",
+                dnevnik: "Kako se osećaš kada zadržiš informacije za sebe umesto da tražiš validaciju deljenjem?"
+            },
+            { 
+                dan: 16, faza: 3, naslov: 'Zakon Asocijacije', 
+                poruka: "Ti si prosek petoro ljudi sa kojima provodiš vreme.", 
+                slika: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1600', 
+                uvod: `<p>Ljudi te procenjuju na osnovu tvog okruženja. Ako se družiš sa 'žrtvama', i tebe će videti kao žrtvu. Ako stojiš pored moćnih, njihova aura prelazi na tebe. To je efekat oreola.</p><p>Moraš nemilosrdno kustosirati svoje okruženje. Ukloni ljude koji ti ruše status ili energiju. Poveži se, makar vizuelno, sa onima koji su tamo gde želiš da budeš.</p>`,
+                koraci: [
+                    { naslov: "Sanitarni Kordon", ikona: "fa-trash-alt", tekst: "Identifikuj 'vampire energije' u svom životu. Svedi kontakt s njima na minimum. Njihova loša reputacija ili negativnost su zarazni." },
+                    { naslov: "Vizuena Blizina", ikona: "fa-network-wired", tekst: "Na događajima, stani pored najvažnije osobe, čak i ako ne pričate. Ljudi koji vas vide zajedno podsvesno će vas povezati kao jednake." }
+                ],
+                misija: "Napravi reviziju svojih najbližih kontakata. Ko ti podiže vrednost, a ko je spušta? Napravi plan distanciranja od jedne toksične osobe.",
+                dnevnik: "Da li osećaš krivicu zbog biranja društva? Zapamti, to je tvoja budućnost u pitanju."
+            },
+            { 
+                dan: 17, faza: 3, naslov: 'Emocionalna Zaraza', 
+                poruka: "Lider je onaj čija je emocija najjača u sobi.", 
+                slika: 'https://images.unsplash.com/photo-1542382257-80dedb725088?q=80&w=1600', 
+                uvod: `<p>Emocije su zarazne virusne. U svakoj grupi, osoba sa najstabilnijom ili najintenzivnijom emocijom diktira 'klimu'. Ako si ti miran u haosu, svi će se smiriti gledajući u tebe.</p><p>Ne dozvoli da tuđe loše raspoloženje pređe na tebe. Umesto toga, nametni svoje raspoloženje njima. To je suptilna, ali apsolutna dominacija.</p>`,
+                koraci: [
+                    { naslov: "Sidro Stabilnosti", ikona: "fa-anchor", tekst: "Kada su svi pod stresom, namerno uspori pokrete i govori tiše. Postani 'oko uragana'. Ljudi će se instinktivno okupiti oko tvoje mirnoće." },
+                    { naslov: "Preokret Energije", ikona: "fa-bolt", tekst: "Kada neko uđe ljut ili negativan, dočekaj ga visokom pozitivnom energijom (ne lažnom, već čvrstom). Često će se njihov 'okvir' razbiti o tvoj zid pozitivnosti." }
+                ],
+                misija: "Kada se nađeš u napetoj situaciji ili pored nervozne osobe, svesno uspori disanje i pokrete. Posmatraj da li se i oni smiruju.",
+                dnevnik: "Da li si uspeo da promeniš atmosferu u sobi samo svojom energijom?"
+            },
+            { 
+                dan: 18, faza: 3, naslov: 'Korišćenje Neprijatelja', 
+                poruka: "Konflikt definiše granice. Ne beži od njega.", 
+                slika: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=1600', 
+                uvod: `<p>Dobar 'neprijatelj' (konkurencija, rival, problem) je koristan. On mobiliše tvoju energiju i fokusira tvoj tim. Ponekad je potrebno stvoriti zajedničkog protivnika da bi se grupa ujedinila.</p><p>Takođe, način na koji tretiraš rivale govori sve o tebi. Nikad ne ogovaraj. Pobeduj ih rezultatima, a govori o njima sa hladnim poštovanjem ili potpunom ravnodušnošću.</p>`,
+                koraci: [
+                    { naslov: "Dostojanstvo u Konfliktu", ikona: "fa-chess-king", tekst: "Kada te neko napadne, ne valjaj se u blatu. Odgovori kratko, činjenično i bez emocija. Neka oni izgledaju histerično pored tvoje staloženosti." },
+                    { naslov: "Polarizacija", ikona: "fa-magnet", tekst: "Nemoj pokušavati da se dopadneš svima. To je nemoguće. Zauzmi stav. Oni koji se slažu postaće lojalni fanovi. Oni koji ne, postaće rivali, što je bolje nego da te ignorišu." }
+                ],
+                misija: "Identifikuj jedan stav ili vrednost oko koje nećeš praviti kompromis, čak i ako se drugi ne slažu. Izrazi to javno ako se tema pojavi.",
+                dnevnik: "Kako se osećaš kada znaš da ne moraš svima da se svidiš?"
+            },
+            { 
+                dan: 19, faza: 3, naslov: 'Strateška Ranjivost', 
+                poruka: "Savršenstvo odbija. Male mane povezuju.", 
+                slika: 'https://images.unsplash.com/photo-1503428593586-e225b476d0cc?q=80&w=1600', 
+                uvod: `<p>Paradoksalno, ako deluješ previše savršeno, ljudi će tražiti tvoju grešku. Da bi ih razoružao, primeni 'Pratfall efekat'. Priznaj malu, bezopasnu manu ili nespretnost.</p><p>To te čini ljudskim ('relatable') i spušta gard kod drugih, dok tvoja ključna kompetencija ostaje netaknuta. To je strateško pokazivanje stomaka da bi se protivnik opustio.</p>`,
+                koraci: [
+                    { naslov: "Kontrolisani Kiks", ikona: "fa-user-injured", tekst: "Priznaj da si loš u nečemu nebitnom (npr. 'Užasno pamtim imena filmova'). To čini da tvoji veliki talenti deluju manje zastrašujuće." },
+                    { naslov: "Traženje Saveta", ikona: "fa-hand-holding-heart", tekst: "Pitaj podređenog za savet u oblasti gde su oni stručni. To im diže ego, a tebe ne košta autoriteta. Naprotiv, pokazuješ sigurnost." }
+                ],
+                misija: "Danas priznaj malu grešku ili neznanje pred drugima bez pravdanja. Samo reci 'Tu sam pogrešio' ili 'Ne znam to'.",
+                dnevnik: "Da li je priznanje greške oslabilo tvoju poziciju ili je povećalo poverenje?"
+            },
+            { 
+                dan: 20, faza: 3, naslov: 'Veliki Narativ', 
+                poruka: "Ljudi ne kupuju proizvode, kupuju priče.", 
+                slika: 'https://images.unsplash.com/photo-1444653614773-995cb1ef902a?q=80&w=1600', 
+                uvod: `<p>Na kraju, najveći uticaj ima onaj ko najbolje priča priču. Tvoj život, tvoj rad, tvoja ideja – sve mora biti upakovano u narativ borbe, prevazilaženja i vizije.</p><p>Ne iznosi suve činjenice. Činjenice se zaboravljaju. Emocije ostaju. Nauči da svaku svoju akciju predstaviš kao deo veće misije. Ljudi žele da budu deo nečeg velikog.</p>`,
+                koraci: [
+                    { naslov: "Putovanje Heroja", ikona: "fa-book-open", tekst: "Kada pričaš o sebi, koristi strukturu: Izazov -> Borba -> Naučena Lekcija -> Pobeda. To je univerzalni jezik koji svi razumeju." },
+                    { naslov: "Prodaja 'Zašto'", ikona: "fa-question", tekst: "Ne govori ljudima ŠTA da rade. Objasni im ZAŠTO je to važno. Kada razumeju 'zašto' (svrhu), sami će naći način za 'kako'." }
+                ],
+                misija: "Sledeći put kada treba nekoga da ubediš, ne koristi logiku. Ispričaj kratku priču ili primer koji ilustruje poentu i gađa emociju.",
+                dnevnik: "Koja je tvoja lična priča? Kako bi je ispričao u 3 rečenice nekome koga želiš da impresioniraš?"
+            },
+            { 
+                dan: 21, faza: 3, naslov: 'Kodeks: Veliki Arhitekta', 
+                poruka: "Ti više ne reaguješ na svet. Ti ga stvaraš.", 
+                slika: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1600', 
+                uvod: `<p>Stigli smo do kraja. Ali ovo nije kraj, ovo je diplomiranje. Prošao si kroz analizu signala, nevidljivi uticaj i stratešku dominaciju.</p><p>Sada imaš 'Rentgenske naočare' za ljudsko ponašanje. Vidiš motive, strahove i želje tamo gde drugi vide samo površinu. Ova moć nosi odgovornost. Koristi je da razumeš, da se zaštitiš i da izgradiš svet po svojoj meri. Ne budi više pion na tabli. Budi igrač.</p>`,
+                koraci: [
+                    { naslov: "Integracija", ikona: "fa-infinity", tekst: "Ovo znanje mora postati tvoj refleks. Ne razmišljaj o govoru tela, samo ga čitaj. Ne planiraj uticaj, samo zrači njime. To je nesvesna kompetencija." },
+                    { naslov: "Mentorstvo", ikona: "fa-hands-helping", tekst: "Najbolji način da utvrdiš moć je da je deliš. Nauči druge (one koji zaslužuju) ovim principima. Stvaranjem jakih ljudi oko sebe, jačaš i sebe." }
+                ],
+                misija: "Definiši svoj lični Kodeks Uticaja. Koje su tri osnovne vrednosti kojih ćeš se držati dok koristiš ove veštine? Zapiši ih.",
+                dnevnik: "Kako se osoba koja je počela Dan 1 razlikuje od osobe koja završava Dan 21? Ti si sada Dekoder."
+            }
+        ];
+
+        // --- STANJE I LOKALNO SKLADIŠTE ---
+        let stanjeIgraca = JSON.parse(localStorage.getItem('dekodiranjeUticajaStanje')) || { zavrseniDani: [] };
+        
+        // --- INICIJALIZACIJA ---
+        window.onload = () => {
+            if(window.location.hash) {
+                const dan = parseInt(window.location.hash.split('-')[1]);
+                ucitajDan(dan);
+            } else {
+                ucitajKomandnuTablu();
+            }
+        };
+
+        // --- NAVIGACIJA ---
+        function promeniMeni() {
+            document.getElementById('meniPrekrivac').classList.toggle('aktivno');
+            prikaziMeni();
+        }
+
+        function prikaziMeni() {
+            const kontejner = document.getElementById('meniSadrzaj');
+            let html = `<div onclick="promeniMeni(); ucitajKomandnuTablu()" class="meni-link border-l-4 border-white bg-[#111]"><span class="text-white font-bold tracking-widest text-xs">CENTRALNI REGISTAR</span></div>`;
+            
+            [1, 2, 3].forEach(faza => {
+                const naslov = faza === 1 ? "ANALIZA SIGNALA" : faza === 2 ? "NEVIDLJIVI UTICAJ" : "STRATEŠKA DOMINACIJA";
+                html += `<div class="meni-faza">FAZA ${faza}: ${naslov}</div>`;
+                
+                podaciKursa.filter(d => d.faza === faza).forEach(d => {
+                    const zavrseno = stanjeIgraca.zavrseniDani.includes(d.dan);
+                    html += `
+                        <div onclick="promeniMeni(); ucitajDan(${d.dan})" class="meni-link group">
+                            <span class="font-[var(--font-tehnicki)] text-[var(--akcent-zlato)] text-xs w-8">0${d.dan}</span>
+                            <span class="text-[#ccc] group-hover:text-white font-[var(--font-zaglavlje)] text-sm tracking-wide transition uppercase">${d.naslov}</span>
+                            ${zavrseno ? '<i class="fas fa-check text-[var(--akcent-zlato)] text-xs ml-auto"></i>' : ''}
+                        </div>
+                    `;
+                });
+            });
+            kontejner.innerHTML = html;
+        }
+
+        // --- KOMANDNA TABLA ---
+        function ucitajKomandnuTablu() {
+            const glavni = document.getElementById('glavniKontejner');
+            glavni.style.opacity = 0;
+            setTimeout(() => {
+                const ukupanNapredak = Math.round((stanjeIgraca.zavrseniDani.length / 21) * 100);
+                
+                glavni.innerHTML = `
+                    <div class="text-center pt-8 md:pt-12">
+                        <div class="inline-block border border-[var(--akcent-zlato)] px-6 py-2 mb-10 bg-[rgba(197,160,89,0.1)]">
+                            <span class="status-tekst text-[var(--akcent-zlato)] font-bold tracking-widest">SISTEM AKTIVAN // NAPREDAK: ${ukupanNapredak}%</span>
+                        </div>
+                        <h1 class="text-6xl md:text-9xl naslov-elita mb-8 tracking-tighter">KODEKS</h1>
+                        <p class="status-tekst text-[#888] mb-24 text-sm tracking-[4px]">PROTOKOL: DEKODIRANJE UTICAJA // STATUS: OTVORENO</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mb-24 text-left">
+                            <div class="sadrzaj-kartica cursor-pointer group" onclick="ucitajDan(1)">
+                                <div class="text-[var(--akcent-zlato)] text-5xl mb-8 group-hover:scale-110 transition duration-500"><i class="fas fa-eye"></i></div>
+                                <h3 class="text-2xl text-white mb-4 font-[var(--font-zaglavlje)]">Faza I: Analiza</h3>
+                                <p class="text-sm text-[#999] leading-relaxed font-[var(--font-telo)]">Čitanje ljudi. Mikro-ekspresije, govor tela, ton glasa. Videti ono što je skriveno.</p>
+                                <div class="mt-6 h-1 w-full bg-[#333]"><div class="h-full bg-[var(--akcent-zlato)]" style="width: ${Math.min(100, (stanjeIgraca.zavrseniDani.filter(d=>d<=7).length/7)*100)}%"></div></div>
+                            </div>
+                            <div class="sadrzaj-kartica cursor-pointer group" onclick="ucitajDan(8)">
+                                <div class="text-[var(--akcent-zlato)] text-5xl mb-8 group-hover:scale-110 transition duration-500"><i class="fas fa-chess"></i></div>
+                                <h3 class="text-2xl text-white mb-4 font-[var(--font-zaglavlje)]">Faza II: Uticaj</h3>
+                                <p class="text-sm text-[#999] leading-relaxed font-[var(--font-telo)]">Mehanika ubeđivanja. Reciprocitet, uokvirivanje, tišina i psihološke poluge.</p>
+                                <div class="mt-6 h-1 w-full bg-[#333]"><div class="h-full bg-[var(--akcent-zlato)]" style="width: ${Math.min(100, (stanjeIgraca.zavrseniDani.filter(d=>d>7 && d<=14).length/7)*100)}%"></div></div>
+                            </div>
+                            <div class="sadrzaj-kartica cursor-pointer group" onclick="ucitajDan(15)">
+                                <div class="text-[var(--akcent-zlato)] text-5xl mb-8 group-hover:scale-110 transition duration-500"><i class="fas fa-crown"></i></div>
+                                <h3 class="text-2xl text-white mb-4 font-[var(--font-zaglavlje)]">Faza III: Strategija</h3>
+                                <p class="text-sm text-[#999] leading-relaxed font-[var(--font-telo)]">Arhitektura moći. Reputacija, socijalni inženjering i dugoročna dominacija.</p>
+                                <div class="mt-6 h-1 w-full bg-[#333]"><div class="h-full bg-[var(--akcent-zlato)]" style="width: ${Math.min(100, (stanjeIgraca.zavrseniDani.filter(d=>d>14).length/7)*100)}%"></div></div>
+                            </div>
+                        </div>
+
+                        <button onclick="ucitajDan(1)" class="takticko-dugme text-xl px-16 py-5 bg-[rgba(197,160,89,0.15)] tracking-[4px]">POKRENI SISTEM</button>
+                    </div>
+                `;
+                glavni.style.opacity = 1;
+            }, 300);
+        }
+
+        // --- UCITAVANJE DANA & IZVESTAJA ---
+        function ucitajDan(dan) {
+            window.danNaCekanju = dan;
+            const podaci = podaciKursa.find(d => d.dan === dan);
+            
+            // Izvestaj (Intel Drop)
+            const izvestajPrekrivac = document.getElementById('izvestajPrekrivac');
+            document.getElementById('tekstPoruke').innerText = `"${podaci.poruka}"`;
+            izvestajPrekrivac.classList.add('aktivno');
+        }
+
+        function zatvoriIzvestaj() {
+            document.getElementById('izvestajPrekrivac').classList.remove('aktivno');
+            setTimeout(() => {
+                prikaziSadrzajDana(window.danNaCekanju);
+            }, 500);
+        }
+
+        function prikaziSadrzajDana(dan) {
+            const podaci = podaciKursa.find(d => d.dan === dan);
+            const glavni = document.getElementById('glavniKontejner');
+            const zavrseno = stanjeIgraca.zavrseniDani.includes(dan);
+
+            glavni.style.opacity = 0;
+            setTimeout(() => {
+                window.scrollTo(0,0);
+                glavni.innerHTML = `
+                    <!-- HEROJ SEKCIJA -->
+                    <div class="relative w-full h-[45vh] md:h-[55vh] mb-16 border-b-2 border-[var(--akcent-zlato)] shadow-2xl overflow-hidden rounded-sm">
+                        <div class="absolute inset-0 bg-cover bg-center transition duration-[20s] hover:scale-105 heroj-pozadina" 
+                             style="background-image: url('${podaci.slika}');"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-[var(--bg-duboka)] via-[var(--bg-duboka)]/60 to-transparent"></div>
+                        
+                        <div class="absolute bottom-0 left-0 p-8 md:p-12 z-10 w-full">
+                            <div class="flex flex-col gap-5">
+                                <div class="flex items-center gap-4">
+                                    <span class="px-4 py-1 bg-[var(--akcent-zlato)] text-black text-[12px] font-bold uppercase tracking-widest font-[var(--font-tehnicki)] shadow-lg">DAN 0${dan}</span>
+                                    <span class="text-[#bbb] text-[12px] uppercase tracking-widest font-[var(--font-tehnicki)]">FAZA 0${podaci.faza} // BEZBEDNOSNI NIVO: ALFA</span>
+                                </div>
+                                <h1 class="text-5xl md:text-7xl text-white font-[var(--font-zaglavlje)] max-w-5xl uppercase leading-none tracking-wide drop-shadow-lg">${podaci.naslov}</h1>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MREŽA SADRŽAJA -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                        
+                        <!-- LEVA KOLONA: DUBINSKI SADRŽAJ -->
+                        <div class="lg:col-span-8">
+                            <div class="prose prose-xl max-w-none text-[#e2e2e2] font-[var(--font-telo)] leading-loose">
+                                <!-- Uvod -->
+                                <div class="mb-14 text-xl md:text-2xl font-light border-l-4 border-[var(--akcent-platina)] pl-8 ml-2 text-[#d1d5db] py-2">
+                                    ${podaci.uvod}
+                                </div>
+                                
+                                <!-- Taktike -->
+                                <div class="my-16 bg-[#1a1a1c] p-1 border-y border-[#333]">
+                                    <h4 class="text-[var(--akcent-zlato)] font-[var(--font-zaglavlje)] uppercase my-8 text-center text-lg tracking-[5px]">Operativni Protokoli</h4>
+                                    <div class="space-y-12 px-4 pb-8">
+                                        ${podaci.koraci.map((k, i) => `
+                                            <div class="flex items-start gap-6 group">
+                                                <div class="korak-ikona text-2xl group-hover:border-[var(--akcent-zlato)] group-hover:text-[var(--akcent-zlato)] group-hover:bg-[rgba(197,160,89,0.1)] transition duration-300 rounded-sm">
+                                                    <i class="fas ${k.ikona}"></i>
+                                                </div>
+                                                <div>
+                                                    <strong class="text-white block mb-3 text-2xl font-[var(--font-zaglavlje)] uppercase tracking-wide group-hover:text-[var(--akcent-platina)] transition">${k.naslov}</strong>
+                                                    <p class="text-lg text-[#9ca3af] font-sans leading-relaxed">${k.tekst}</p>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Misija -->
+                                <div class="bg-gradient-to-r from-[#222] to-[#1a1a1a] p-10 border border-[#333] border-l-4 border-l-[var(--akcent-zlato)] mb-12 shadow-xl rounded-sm">
+                                    <h4 class="text-[var(--akcent-zlato)] font-[var(--font-tehnicki)] uppercase mb-6 text-sm tracking-[4px] flex items-center">
+                                        <i class="fas fa-crosshairs mr-3 animate-pulse"></i> Direktiva Dana
+                                    </h4>
+                                    <p class="text-white font-[var(--font-telo)] italic text-2xl leading-relaxed">"${podaci.misija}"</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- DESNA KOLONA: AKCIJA & DNEVNIK -->
+                        <div class="lg:col-span-4 space-y-10">
+                            <div class="bg-[#1f1f22] border border-[#333] p-8 sticky top-24 shadow-2xl rounded-sm">
+                                <h4 class="text-white font-[var(--font-zaglavlje)] uppercase tracking-widest text-sm mb-8 pb-4 border-b border-[#333]">
+                                    Dnevnik Analize <span class="text-[var(--akcent-zlato)] ml-2">// 0${dan}</span>
+                                </h4>
+                                
+                                <div class="mb-8">
+                                    <p class="text-[11px] text-[#777] font-[var(--font-tehnicki)] uppercase mb-3 tracking-widest">Pitanje za Refleksiju:</p>
+                                    <p class="text-lg text-[#ccc] italic font-serif mb-6 leading-relaxed">${podaci.dnevnik}</p>
+                                    <textarea id="unosDnevnika" rows="8" placeholder="Unesi zapažanja... Tvoj um je tvoj alat."></textarea>
+                                </div>
+
+                                <button onclick="oznaciZavrseno(${dan})" class="takticko-dugme w-full flex justify-center items-center gap-3 hover:bg-[var(--akcent-zlato)] hover:text-black font-bold py-4">
+                                    ${zavrseno ? '<i class="fas fa-check-circle"></i> PODACI ARHIVIRANI' : '<i class="fas fa-save"></i> POTVRDI IZVRŠENJE'}
+                                </button>
+                                
+                                <div class="flex justify-between mt-12 pt-6 border-t border-[#333]">
+                                    ${dan > 1 ? `<button onclick="ucitajDan(${dan-1})" class="text-[11px] text-[#666] hover:text-[var(--akcent-platina)] font-[var(--font-tehnicki)] uppercase tracking-widest transition flex items-center gap-2"><i class="fas fa-chevron-left"></i> Nazad</button>` : '<div></div>'}
+                                    ${dan < 21 ? `<button onclick="ucitajDan(${dan+1})" class="text-[11px] text-[#666] hover:text-[var(--akcent-platina)] font-[var(--font-tehnicki)] uppercase tracking-widest transition flex items-center gap-2">Napred <i class="fas fa-chevron-right"></i></button>` : '<div></div>'}
+                                </div>
+                            </div>
+                            
+                            <!-- Indikator Statusa -->
+                            <div class="text-center">
+                                <p class="text-[10px] text-[#444] font-[var(--font-tehnicki)] tracking-[3px]">KODEKS SISTEM v2.4 // SIGURNA VEZA</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                glavni.style.opacity = 1;
+            }, 300);
+        }
+
+        function oznaciZavrseno(dan) {
+            if(!stanjeIgraca.zavrseniDani.includes(dan)) {
+                stanjeIgraca.zavrseniDani.push(dan);
+                localStorage.setItem('dekodiranjeUticajaStanje', JSON.stringify(stanjeIgraca));
+                
+                // Vizuelna povratna informacija
+                const dugme = document.querySelector('button[onclick^="oznaciZavrseno"]');
+                dugme.innerHTML = '<i class="fas fa-check-circle"></i> PODACI ARHIVIRANI';
+                dugme.classList.add('bg-green-900', 'border-green-600', 'text-green-400');
+                dugme.style.borderColor = '#4ade80';
+                dugme.style.color = '#4ade80';
+            }
+        }
+
+    </script>
+</body>
+</html>
